@@ -1,4 +1,3 @@
-// App.js
 import { useParams, Link } from "react-router-dom";
 import { useState, useEffect } from "react";
 import { Container, Row, Col, Card, Button } from "react-bootstrap";
@@ -30,12 +29,14 @@ export function BookDetail() {
     );
   }
 
+  const imageUrl = book.coverImage?.startsWith('http') ? book.coverImage : `http://localhost:5000${book.coverImage}`;
+
   return (
     <Container className="mt-5">
       <Row className="align-items-center shadow-lg p-4 rounded-4 mb-4" style={{ backgroundColor: "#fffaf9" }}>
         <Col md={4} className="text-center mb-4 mb-md-0">
           <Card.Img
-            src={book.coverImage}
+            src={imageUrl}
             className="w-100 rounded-4 border"
             alt={book.title}
             style={{ objectFit: "cover", maxHeight: "360px" }}
