@@ -27,11 +27,11 @@ export const AuthProvider = ({ children }) => {
             setIsAuthenticated(true);
           } else {
             // Token không hợp lệ hoặc hết hạn
-            logout();
+            handleLogout();
           }
         } catch (error) {
           console.error('Lỗi xác thực token:', error);
-          logout();
+          handleLogout();
         }
       }
       setLoading(false);
@@ -40,16 +40,26 @@ export const AuthProvider = ({ children }) => {
     verifyToken();
   }, [token]);
   
-  // Đăng nhập
-  const login = (userData, jwtToken) => {
+  // Đặt thông tin xác thực sau khi đăng nhập hoặc đăng ký thành công
+  const setAuthData = (userData, jwtToken) => {
+    // Lưu token vào localStorage
     localStorage.setItem('token', jwtToken);
     setToken(jwtToken);
-    setUser(userData);
+    
+    // Chỉ lưu những thông tin cần thiết của người dùng
+    const safeUserData = {
+      id: userData.id,
+      username: userData.username,
+      email: userData.email,
+      role: userData.role
+    };
+    
+    setUser(safeUserData);
     setIsAuthenticated(true);
   };
   
   // Đăng xuất
-  const logout = () => {
+  const handleLogout = () => {
     localStorage.removeItem('token');
     setToken(null);
     setUser(null);
@@ -73,7 +83,7 @@ export const AuthProvider = ({ children }) => {
         throw new Error(data.message || 'Đăng ký thất bại');
       }
       
-      login(data.user, data.token);
+      setAuthData(data.user, data.token);
       return { success: true };
     } catch (error) {
       return { success: false, message: error.message };
@@ -81,7 +91,7 @@ export const AuthProvider = ({ children }) => {
   };
   
   // Đăng nhập
-  const loginUser = async (username, password) => {
+  const login = async (username, password) => {
     try {
       const response = await fetch('http://localhost:5000/api/login', {
         method: 'POST',
@@ -97,8 +107,41 @@ export const AuthProvider = ({ children }) => {
         throw new Error(data.message || 'Đăng nhập thất bại');
       }
       
-      login(data.user, data.token);
+      setAuthData(data.user, data.token);
+      
+      // Nếu người dùng vừa đăng nhập thành công, nhưng thấy cảnh báo mật khẩu bị rò rỉ,
+      // bạn có thể hiển thị gợi ý đổi mật khẩu ở đây
+      // Ví dụ: đặt state hiển thị modal hoặc notification
+      
       return { success: true };
+    } catch (error) {
+      return { success: false, message: error.message };
+    }
+  };
+  
+  // Đổi mật khẩu (thêm chức năng mới)
+  const changePassword = async (currentPassword, newPassword) => {
+    if (!token) {
+      return { success: false, message: 'Bạn chưa đăng nhập' };
+    }
+    
+    try {
+      const response = await fetch('http://localhost:5000/api/change-password', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({ currentPassword, newPassword })
+      });
+      
+      const data = await response.json();
+      
+      if (!response.ok) {
+        throw new Error(data.message || 'Đổi mật khẩu thất bại');
+      }
+      
+      return { success: true, message: 'Đổi mật khẩu thành công' };
     } catch (error) {
       return { success: false, message: error.message };
     }
@@ -110,9 +153,10 @@ export const AuthProvider = ({ children }) => {
       user, 
       token, 
       loading,
-      login: loginUser,
-      logout,
-      register
+      login,
+      logout: handleLogout,
+      register,
+      changePassword
     }}>
       {children}
     </AuthContext.Provider>
