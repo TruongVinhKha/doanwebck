@@ -207,14 +207,13 @@ app.get('/api/books/count', async (req, res) => {
 });
 
 // Endpoint để thêm sách (yêu cầu xác thực)
-app.post('/books', authenticateToken, upload.single('coverImage'), async (req, res) => {
+app.post('/books', authenticateToken, async (req, res) => {
   // Kiểm tra quyền admin (nếu cần)
   if (req.user.role !== 'admin') {
     return res.status(403).json({ message: 'Không có quyền thực hiện hành động này' });
   }
 
   const { id, title, author, publishedDate, category, price, description, status } = req.body;
-  const coverImage = req.file ? `/uploads/${req.file.filename}` : '/uploads/default.jpg';
 
   try {
     const newBook = new Book({
@@ -224,7 +223,6 @@ app.post('/books', authenticateToken, upload.single('coverImage'), async (req, r
       publishedDate,
       category,
       price: parseFloat(price),
-      coverImage,
       description,
       status
     });
@@ -253,7 +251,7 @@ app.get('/books', async (req, res) => {
 });
 
 // Cập nhật sách (yêu cầu xác thực)
-app.put('/books/:id', authenticateToken, upload.single('coverImage'), async (req, res) => {
+app.put('/books/:id', authenticateToken, async (req, res) => {
   // Kiểm tra quyền admin (nếu cần)
   if (req.user.role !== 'admin') {
     return res.status(403).json({ message: 'Không có quyền thực hiện hành động này' });
@@ -262,10 +260,6 @@ app.put('/books/:id', authenticateToken, upload.single('coverImage'), async (req
   try {
     const { id } = req.params;
     const updateData = { ...req.body };
-
-    if (req.file) {
-      updateData.coverImage = '/uploads/' + req.file.filename;
-    }
 
     const updatedBook = await Book.findByIdAndUpdate(
       id,
