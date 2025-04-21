@@ -4,24 +4,35 @@ const multer = require('multer');
 const path = require('path');
 const cors = require('cors');
 const fs = require('fs');
-const bcrypt = require('bcryptjs'); // Thêm package cho mã hóa mật khẩu
-const jwt = require('jsonwebtoken'); // Thêm package cho JWT
+const bcrypt = require('bcryptjs');
+const jwt = require('jsonwebtoken');
 
 const app = express();
 const PORT = process.env.PORT || 5000;
-const JWT_SECRET = process.env.JWT_SECRET || 'bookstore_jwt_secret'; // Khóa bí mật JWT
+const JWT_SECRET = 'bookstore_jwt_secret';
 
-// Middleware
+// Middleware CORS với cấu hình cụ thể
 app.use(cors({
-  origin: process.env.NODE_ENV === 'production'
-    ? 'https://client-gamma-inky.vercel.app'
-    : 'http://localhost:3000',
-  methods: ['GET', 'POST', 'PUT', 'DELETE'],
-  allowedHeaders: ['Content-Type', 'Authorization'],
-  credentials: true
+  origin: ['https://client-gamma-inky.vercel.app', 'http://localhost:3000'],
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'Origin', 'Accept']
 }));
+
 app.use(express.json());
-app.use('/uploads', express.static('uploads')); // Phục vụ file tĩnh
+app.use((req, res, next) => {
+  res.header('Access-Control-Allow-Origin', 'https://client-gamma-inky.vercel.app');
+  res.header('Access-Control-Allow-Credentials', true);
+  res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
+  res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept, Authorization');
+  if (req.method === 'OPTIONS') {
+    return res.status(200).end();
+  }
+  next();
+});
+
+// Cấu hình static files
+app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
 // Cấu hình multer
 const storage = multer.diskStorage({
@@ -36,19 +47,21 @@ const upload = multer({ storage });
 
 // Tạo thư mục uploads nếu chưa có
 if (!fs.existsSync('uploads')) {
-  fs.mkdirSync('uploads', { recursive: true });
+  fs.mkdirSync('uploads');
 }
 
-// MongoDB connection
+// MongoDB connection - sử dụng connection string trực tiếp
 const mongoURI = 'mongodb+srv://truongvinhkha:kha123@books-data.uqjrvey.mongodb.net/?retryWrites=true&w=majority&appName=Books-data';
 mongoose.connect(mongoURI, {
   useNewUrlParser: true,
-  useUnifiedTopology: true
+  useUnifiedTopology: true,
+  serverSelectionTimeoutMS: 5000,
+  socketTimeoutMS: 45000,
 })
   .then(() => console.log('MongoDB connected successfully'))
   .catch(err => {
     console.error('MongoDB connection error:', err);
-    process.exit(1); // Thoát nếu không kết nối được
+    process.exit(1);
   });
 
 // Định nghĩa schema sách
@@ -207,13 +220,14 @@ app.get('/api/books/count', async (req, res) => {
 });
 
 // Endpoint để thêm sách (yêu cầu xác thực)
-app.post('/books', authenticateToken, async (req, res) => {
+app.post('/books', authenticateToken, upload.single('coverImage'), async (req, res) => {
   // Kiểm tra quyền admin (nếu cần)
   if (req.user.role !== 'admin') {
     return res.status(403).json({ message: 'Không có quyền thực hiện hành động này' });
   }
 
   const { id, title, author, publishedDate, category, price, description, status } = req.body;
+  const coverImage = req.file ? `/uploads/${req.file.filename}` : '/uploads/default.jpg';
 
   try {
     const newBook = new Book({
@@ -223,6 +237,7 @@ app.post('/books', authenticateToken, async (req, res) => {
       publishedDate,
       category,
       price: parseFloat(price),
+      coverImage,
       description,
       status
     });
@@ -251,7 +266,7 @@ app.get('/books', async (req, res) => {
 });
 
 // Cập nhật sách (yêu cầu xác thực)
-app.put('/books/:id', authenticateToken, async (req, res) => {
+app.put('/books/:id', authenticateToken, upload.single('coverImage'), async (req, res) => {
   // Kiểm tra quyền admin (nếu cần)
   if (req.user.role !== 'admin') {
     return res.status(403).json({ message: 'Không có quyền thực hiện hành động này' });
@@ -260,6 +275,10 @@ app.put('/books/:id', authenticateToken, async (req, res) => {
   try {
     const { id } = req.params;
     const updateData = { ...req.body };
+
+    if (req.file) {
+      updateData.coverImage = '/uploads/' + req.file.filename;
+    }
 
     const updatedBook = await Book.findByIdAndUpdate(
       id,
@@ -319,7 +338,16 @@ app.get('/', (req, res) => {
   res.send('Welcome to the Books API!');
 });
 
+// Thêm middleware xử lý lỗi
+app.use((err, req, res, next) => {
+  console.error(err.stack);
+  res.status(500).json({
+    message: 'Something broke!',
+    error: process.env.NODE_ENV === 'development' ? err.message : 'Internal server error'
+  });
+});
+
 // Khởi động server
 app.listen(PORT, '0.0.0.0', () => {
-  console.log(`Server is running on port ${PORT}`);
+  console.log(`Server is running on port`);
 });
