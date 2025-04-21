@@ -36,10 +36,13 @@ export function BookDetail() {
       <Row className="align-items-center shadow-lg p-4 rounded-4 mb-4" style={{ backgroundColor: "#fffaf9" }}>
         <Col md={4} className="text-center mb-4 mb-md-0">
           <Card.Img
-            src={imageUrl}
+            src={book.coverImage || 'https://coffective.com/wp-content/uploads/2018/06/default-featured-image.png.jpg'}
             className="w-100 rounded-4 border"
             alt={book.title}
             style={{ objectFit: "cover", maxHeight: "360px" }}
+            onError={(e) => {
+              e.target.src = 'https://coffective.com/wp-content/uploads/2018/06/default-featured-image.png.jpg';
+            }}
           />
         </Col>
         <Col md={8}>

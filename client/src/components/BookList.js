@@ -97,12 +97,13 @@ function BookList({ query, setQuery, category, setCategory }) {
               <Col key={book._id} md={3}>
                 <Card className="shadow-lg border-0 rounded-4" style={{ backgroundColor: "#fffaf9" }}>
                   <Card.Img
-                    src={book.coverImage?.startsWith('http') 
-                      ? book.coverImage 
-                      : `http://localhost:5000${book.coverImage}`}
+                    src={book.coverImage || 'https://coffective.com/wp-content/uploads/2018/06/default-featured-image.png.jpg'}
                     alt={book.title}
                     className="w-100 object-cover rounded-top-4"
                     style={{ height: "240px", objectFit: "cover" }}
+                    onError={(e) => {
+                      e.target.src = 'https://coffective.com/wp-content/uploads/2018/06/default-featured-image.png.jpg';
+                    }}
                   />
                   <Card.Body className="d-flex flex-column gap-2">
                     <Card.Title className="line-clamp-2 fw-bold text-dark" style={{ height: "3rem" }}>

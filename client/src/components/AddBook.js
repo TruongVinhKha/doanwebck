@@ -12,11 +12,10 @@ function AddBook() {
     publishedDate: "",
     category: "",
     price: "",
+    coverImage: "",
     status: "còn hàng",
     description: "",
   });
-  const [imageFile, setImageFile] = useState(null);
-  const [imagePreview, setImagePreview] = useState("");
   const [nextId, setNextId] = useState(0);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -68,36 +67,17 @@ function AddBook() {
     setBook({ ...book, [name]: value });
   };
 
-  const handleImageChange = (e) => {
-    const file = e.target.files[0];
-    if (file) {
-      setImageFile(file);
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        setImagePreview(reader.result);
-      };
-      reader.readAsDataURL(file);
-    }
-  };
-
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!imageFile) {
-      showNotification("Vui lòng chọn một hình ảnh!", "error");
+    if (!book.coverImage) {
+      showNotification("Vui lòng nhập URL hình ảnh!", "error");
       return;
     }
 
     setIsSubmitting(true);
-    const formData = new FormData();
-    Object.keys(book).forEach((key) => {
-      formData.append(key, book[key]);
-    });
-    formData.append("coverImage", imageFile);
 
     try {
-      const response = await axios.post("http://localhost:5000/books", formData, {
-        headers: { "Content-Type": "multipart/form-data" },
-      });
+      const response = await axios.post("http://localhost:5000/books", book);
       if (response.status === 201) {
         showNotification("Thêm sách thành công!");
         setNextId(nextId + 1); // Tăng nextId sau khi thêm thành công
@@ -108,11 +88,10 @@ function AddBook() {
           publishedDate: "",
           category: "",
           price: "",
+          coverImage: "",
           status: "còn hàng",
           description: "",
         });
-        setImageFile(null);
-        setImagePreview("");
         navigate("/book-list");
       }
     } catch (error) {
@@ -268,17 +247,27 @@ function AddBook() {
               />
             </Form.Group>
             <Form.Group>
-              <Form.Label className="fw-semibold">Hình ảnh</Form.Label>
+              <Form.Label className="fw-semibold">URL Hình ảnh</Form.Label>
               <Form.Control
-                type="file"
+                type="text"
                 name="coverImage"
-                onChange={handleImageChange}
+                value={book.coverImage}
+                onChange={handleChange}
+                placeholder="Nhập URL hình ảnh"
                 required
               />
             </Form.Group>
-            {imagePreview && (
+            {book.coverImage && (
               <div className="image-preview mb-3">
-                <Image src={imagePreview} alt="Preview" fluid style={{ maxHeight: "200px" }} />
+                <Image
+                  src={book.coverImage || 'https://coffective.com/wp-content/uploads/2018/06/default-featured-image.png.jpg'}
+                  alt="Preview"
+                  fluid
+                  style={{ maxHeight: "200px" }}
+                  onError={(e) => {
+                    e.target.src = 'https://coffective.com/wp-content/uploads/2018/06/default-featured-image.png.jpg';
+                  }}
+                />
               </div>
             )}
             <div className="d-flex justify-content-between mt-3 gap-2">

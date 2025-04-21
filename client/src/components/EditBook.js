@@ -9,13 +9,14 @@ function EditBook() {
   const [book, setBook] = useState({
     id: "",
     title: "",
+    author: "",
+    publishedDate: "",
     category: "",
     price: "",
-    status: "còn hàng",
+    coverImage: "",
     description: "",
+    status: "còn hàng"
   });
-  const [imageFile, setImageFile] = useState(null);
-  const [imagePreview, setImagePreview] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [loading, setLoading] = useState(true);
 
@@ -27,19 +28,14 @@ function EditBook() {
         // Use the correct endpoint that matches your server.js
         const response = await axios.get(`http://localhost:5000/books/${id}`);
         const bookData = response.data;
-        
+
         // Format the date if it exists
         if (bookData.publishedDate) {
           const date = new Date(bookData.publishedDate);
           bookData.publishedDate = date.toISOString().split('T')[0]; // Format as YYYY-MM-DD
         }
-        
+
         setBook(bookData);
-        // Set image preview if it exists
-        setImagePreview(bookData.coverImage?.startsWith('http') 
-          ? bookData.coverImage 
-          : `http://localhost:5000${bookData.coverImage}`);
-          
         setLoading(false);
       } catch (error) {
         console.error("Error fetching book:", error);
@@ -47,7 +43,7 @@ function EditBook() {
         setLoading(false);
       }
     };
-    
+
     if (id) {
       fetchBook();
     }
@@ -62,46 +58,16 @@ function EditBook() {
     setBook({ ...book, [name]: value });
   };
 
-  const handleImageChange = (e) => {
-    const file = e.target.files[0];
-    if (file) {
-      setImageFile(file);
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        setImagePreview(reader.result);
-      };
-      reader.readAsDataURL(file);
-    }
-  };
-
   const handleSubmit = async (e) => {
     e.preventDefault();
     setIsSubmitting(true);
-  
+
     try {
-      const formData = new FormData();
-      
-      // Loại bỏ các trường null/undefined và chuyển đổi giá trị thành string
-      Object.keys(book).forEach((key) => {
-        if (book[key] != null) {
-          formData.append(key, String(book[key]));
-        }
-      });
-      
-      if (imageFile) {
-        formData.append("coverImage", imageFile);
-      }
-  
       const response = await axios.put(
         `http://localhost:5000/books/${id}`,
-        formData,
-        {
-          headers: { 
-            'Content-Type': 'multipart/form-data'
-          }
-        }
+        book
       );
-  
+
       if (response.status === 200) {
         showNotification("Cập nhật sách thành công!");
         navigate("/book-list");
@@ -109,7 +75,7 @@ function EditBook() {
     } catch (error) {
       console.error("Error updating book:", error);
       showNotification(
-        error.response?.data?.message || "Lỗi khi cập nhật sách!", 
+        error.response?.data?.message || "Lỗi khi cập nhật sách!",
         "error"
       );
     } finally {
@@ -252,19 +218,27 @@ function EditBook() {
               />
             </Form.Group>
             <Form.Group>
-              <Form.Label className="fw-semibold">Hình ảnh</Form.Label>
+              <Form.Label className="fw-semibold">URL Hình ảnh</Form.Label>
               <Form.Control
-                type="file"
+                type="text"
                 name="coverImage"
-                onChange={handleImageChange}
+                value={book.coverImage}
+                onChange={handleChange}
+                placeholder="Nhập URL hình ảnh"
+                required
               />
-              <Form.Text className="text-muted">
-                Chỉ chọn ảnh mới nếu bạn muốn thay đổi ảnh hiện tại
-              </Form.Text>
             </Form.Group>
-            {imagePreview && (
+            {book.coverImage && (
               <div className="image-preview mb-3">
-                <Image src={imagePreview} alt="Preview" fluid style={{ maxHeight: "200px" }} />
+                <Image
+                  src={book.coverImage || 'https://coffective.com/wp-content/uploads/2018/06/default-featured-image.png.jpg'}
+                  alt="Preview"
+                  fluid
+                  style={{ maxHeight: "200px" }}
+                  onError={(e) => {
+                    e.target.src = 'https://coffective.com/wp-content/uploads/2018/06/default-featured-image.png.jpg';
+                  }}
+                />
               </div>
             )}
             <div className="d-flex justify-content-between mt-3 gap-2">
