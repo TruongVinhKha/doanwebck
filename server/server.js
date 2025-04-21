@@ -13,9 +13,12 @@ const JWT_SECRET = process.env.JWT_SECRET || 'bookstore_jwt_secret'; // Khóa b�
 
 // Middleware
 app.use(cors({
-  origin: '*',
+  origin: process.env.NODE_ENV === 'production'
+    ? 'https://client-gamma-inky.vercel.app'
+    : 'http://localhost:3000',
   methods: ['GET', 'POST', 'PUT', 'DELETE'],
-  allowedHeaders: ['Content-Type', 'Authorization'] // Thêm Authorization vào allowedHeaders
+  allowedHeaders: ['Content-Type', 'Authorization'],
+  credentials: true
 }));
 app.use(express.json());
 app.use('/uploads', express.static('uploads')); // Phục vụ file tĩnh
@@ -33,7 +36,7 @@ const upload = multer({ storage });
 
 // Tạo thư mục uploads nếu chưa có
 if (!fs.existsSync('uploads')) {
-  fs.mkdirSync('uploads');
+  fs.mkdirSync('uploads', { recursive: true });
 }
 
 // MongoDB connection
@@ -323,6 +326,6 @@ app.get('/', (req, res) => {
 });
 
 // Khởi động server
-app.listen(PORT, () => {
+app.listen(PORT, '0.0.0.0', () => {
   console.log(`Server is running on port ${PORT}`);
 });
