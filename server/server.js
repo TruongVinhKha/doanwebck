@@ -13,7 +13,7 @@ const JWT_SECRET = process.env.JWT_SECRET || 'bookstore_jwt_secret'; // Khóa b�
 
 // Middleware
 app.use(cors({
-  origin: 'http://localhost:3000', // Đảm bảo khớp với URL của React app
+  origin: '*',
   methods: ['GET', 'POST', 'PUT', 'DELETE'],
   allowedHeaders: ['Content-Type', 'Authorization'] // Thêm Authorization vào allowedHeaders
 }));
