@@ -1,353 +1,269 @@
 const express = require('express');
 const mongoose = require('mongoose');
-const multer = require('multer');
-const path = require('path');
 const cors = require('cors');
-const fs = require('fs');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 
 const app = express();
 const PORT = process.env.PORT || 5000;
-const JWT_SECRET = 'bookstore_jwt_secret';
+const JWT_SECRET = process.env.JWT_SECRET || 'bookstore_jwt_secret';
 
-// Middleware CORS với cấu hình cụ thể
+// Middleware CORS
 app.use(cors({
-  origin: ['https://client-gamma-inky.vercel.app', 'http://localhost:3000'],
-  credentials: true,
-  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization', 'Origin', 'Accept']
+    origin: process.env.NODE_ENV === 'production'
+        ? ['https://client-gamma-inky.vercel.app']
+        : ['http://localhost:3000'],
+    methods: ['GET', 'POST', 'PUT', 'DELETE'],
+    allowedHeaders: ['Content-Type', 'Authorization'],
+    credentials: true
 }));
 
 app.use(express.json());
-app.use((req, res, next) => {
-  res.header('Access-Control-Allow-Origin', 'https://client-gamma-inky.vercel.app');
-  res.header('Access-Control-Allow-Credentials', true);
-  res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
-  res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept, Authorization');
-  if (req.method === 'OPTIONS') {
-    return res.status(200).end();
-  }
-  next();
-});
 
-// Cấu hình static files
-app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
-
-// Cấu hình multer
-const storage = multer.diskStorage({
-  destination: (req, file, cb) => {
-    cb(null, 'uploads/');
-  },
-  filename: (req, file, cb) => {
-    cb(null, Date.now() + path.extname(file.originalname));
-  }
-});
-const upload = multer({ storage });
-
-// Tạo thư mục uploads nếu chưa có
-if (!fs.existsSync('uploads')) {
-  fs.mkdirSync('uploads');
-}
-
-// MongoDB connection - sử dụng connection string trực tiếp
+// MongoDB Connection
 const mongoURI = 'mongodb+srv://truongvinhkha:kha123@books-data.uqjrvey.mongodb.net/?retryWrites=true&w=majority&appName=Books-data';
-mongoose.connect(mongoURI, {
-  useNewUrlParser: true,
-  useUnifiedTopology: true,
-  serverSelectionTimeoutMS: 5000,
-  socketTimeoutMS: 45000,
-})
-  .then(() => console.log('MongoDB connected successfully'))
-  .catch(err => {
-    console.error('MongoDB connection error:', err);
-    process.exit(1);
-  });
+mongoose.connect(mongoURI)
+    .then(() => console.log('MongoDB connected'))
+    .catch(err => console.error('MongoDB connection error:', err));
 
-// Định nghĩa schema sách
+// Book Schema
 const bookSchema = new mongoose.Schema({
-  id: { type: String, required: true, unique: true },
-  title: { type: String, required: true },
-  author: { type: String, required: true },
-  publishedDate: { type: Date, required: true },
-  category: { type: String, default: 'Unknown' },
-  price: { type: Number, default: 0 },
-  coverImage: { type: String, default: '/uploads/default.jpg' },
-  description: { type: String, default: '' },
-  status: { type: String, default: 'còn hàng' }
+    id: { type: String, required: true, unique: true },
+    title: { type: String, required: true },
+    author: { type: String, required: true },
+    publishedDate: { type: Date, required: true },
+    category: { type: String, default: 'Unknown' },
+    price: { type: Number, default: 0 },
+    coverImage: { type: String, default: 'https://coffective.com/wp-content/uploads/2018/06/default-featured-image.png.jpg' },
+    description: { type: String, default: '' },
+    status: { type: String, default: 'còn hàng' }
 });
 
-// Định nghĩa schema người dùng
+// User Schema
 const userSchema = new mongoose.Schema({
-  username: { type: String, required: true, unique: true },
-  email: { type: String, required: true, unique: true },
-  password: { type: String, required: true },
-  createdAt: { type: Date, default: Date.now }
+    username: { type: String, required: true, unique: true },
+    email: { type: String, required: true, unique: true },
+    password: { type: String, required: true },
+    role: { type: String, default: 'user' }
 });
 
 const Book = mongoose.model('Book', bookSchema);
 const User = mongoose.model('User', userSchema);
 
-// Middleware xác thực JWT
+// JWT Authentication Middleware
 const authenticateToken = (req, res, next) => {
-  const authHeader = req.headers['authorization'];
-  const token = authHeader && authHeader.split(' ')[1]; // Bearer TOKEN
+    const authHeader = req.headers['authorization'];
+    const token = authHeader && authHeader.split(' ')[1];
 
-  if (!token) {
-    return res.status(401).json({ message: 'Không có token xác thực' });
-  }
-
-  jwt.verify(token, JWT_SECRET, (err, user) => {
-    if (err) {
-      return res.status(403).json({ message: 'Token không hợp lệ hoặc đã hết hạn' });
+    if (!token) {
+        return res.status(401).json({ message: 'Không có token xác thực' });
     }
-    req.user = user;
-    next();
-  });
+
+    jwt.verify(token, JWT_SECRET, (err, user) => {
+        if (err) {
+            return res.status(403).json({ message: 'Token không hợp lệ' });
+        }
+        req.user = user;
+        next();
+    });
 };
 
-// API đăng ký người dùng
+// Register API
 app.post('/api/register', async (req, res) => {
-  try {
-    const { username, email, password } = req.body;
+    try {
+        const { username, email, password } = req.body;
 
-    // Kiểm tra người dùng đã tồn tại chưa
-    const existingUser = await User.findOne({ $or: [{ username }, { email }] });
-    if (existingUser) {
-      return res.status(400).json({ message: 'Username hoặc email đã tồn tại' });
+        // Check existing user
+        const existingUser = await User.findOne({ $or: [{ username }, { email }] });
+        if (existingUser) {
+            return res.status(400).json({ message: 'Tên đăng nhập hoặc email đã tồn tại' });
+        }
+
+        // Hash password
+        const hashedPassword = await bcrypt.hash(password, 10);
+
+        // Create new user
+        const user = new User({
+            username,
+            email,
+            password: hashedPassword,
+            role: 'user'
+        });
+
+        await user.save();
+
+        // Create token
+        const token = jwt.sign(
+            { id: user._id, username: user.username, role: user.role },
+            JWT_SECRET,
+            { expiresIn: '24h' }
+        );
+
+        res.status(201).json({
+            message: 'Đăng ký thành công',
+            user: { id: user._id, username, email, role: user.role },
+            token
+        });
+    } catch (error) {
+        res.status(500).json({ message: 'Lỗi server', error: error.message });
     }
-
-    // Mã hóa mật khẩu
-    const salt = await bcrypt.genSalt(10);
-    const hashedPassword = await bcrypt.hash(password, salt);
-
-    // Tạo người dùng mới
-    const newUser = new User({
-      username,
-      email,
-      password: hashedPassword
-    });
-
-    await newUser.save();
-
-    // Tạo JWT token
-    const token = jwt.sign(
-      { userId: newUser._id, username: newUser.username, role: newUser.role },
-      JWT_SECRET,
-      { expiresIn: '24h' } // Token hết hạn sau 24 giờ
-    );
-
-    res.status(201).json({
-      message: 'Đăng ký thành công',
-      token,
-      user: {
-        id: newUser._id,
-        username: newUser.username,
-        email: newUser.email,
-        role: newUser.role
-      }
-    });
-  } catch (error) {
-    console.error('Lỗi đăng ký:', error);
-    res.status(500).json({ message: 'Lỗi server' });
-  }
 });
 
-// API đăng nhập
+// Login API
 app.post('/api/login', async (req, res) => {
-  try {
-    const { username, password } = req.body;
+    try {
+        const { username, password } = req.body;
 
-    // Tìm người dùng
-    const user = await User.findOne({ username });
-    if (!user) {
-      return res.status(400).json({ message: 'Tên đăng nhập hoặc mật khẩu không chính xác' });
+        // Find user
+        const user = await User.findOne({ username });
+        if (!user) {
+            return res.status(401).json({ message: 'Tên đăng nhập không tồn tại' });
+        }
+
+        // Check password
+        const validPassword = await bcrypt.compare(password, user.password);
+        if (!validPassword) {
+            return res.status(401).json({ message: 'Mật khẩu không đúng' });
+        }
+
+        // Create token
+        const token = jwt.sign(
+            { id: user._id, username: user.username, role: user.role },
+            JWT_SECRET,
+            { expiresIn: '24h' }
+        );
+
+        res.json({
+            message: 'Đăng nhập thành công',
+            user: { id: user._id, username, email: user.email, role: user.role },
+            token
+        });
+    } catch (error) {
+        res.status(500).json({ message: 'Lỗi server', error: error.message });
     }
-
-    // Kiểm tra mật khẩu
-    const isPasswordValid = await bcrypt.compare(password, user.password);
-    if (!isPasswordValid) {
-      return res.status(400).json({ message: 'Tên đăng nhập hoặc mật khẩu không chính xác' });
-    }
-
-    // Tạo JWT token
-    const token = jwt.sign(
-      { userId: user._id, username: user.username, role: user.role },
-      JWT_SECRET,
-      { expiresIn: '24h' }
-    );
-
-    res.json({
-      message: 'Đăng nhập thành công',
-      token,
-      user: {
-        id: user._id,
-        username: user.username,
-        email: user.email,
-        role: user.role
-      }
-    });
-  } catch (error) {
-    console.error('Lỗi đăng nhập:', error);
-    res.status(500).json({ message: 'Lỗi server' });
-  }
 });
 
-// API lấy thông tin người dùng hiện tại
+// Get Current User API
 app.get('/api/user', authenticateToken, async (req, res) => {
-  try {
-    const user = await User.findById(req.user.userId).select('-password');
-    if (!user) {
-      return res.status(404).json({ message: 'Không tìm thấy người dùng' });
+    try {
+        const user = await User.findById(req.user.id).select('-password');
+        res.json(user);
+    } catch (error) {
+        res.status(500).json({ message: 'Lỗi server', error: error.message });
     }
-    res.json(user);
-  } catch (error) {
-    console.error('Lỗi khi lấy thông tin người dùng:', error);
-    res.status(500).json({ message: 'Lỗi server' });
-  }
 });
 
-// Endpoint để lấy số lượng sách
+// Get Book Count API
 app.get('/api/books/count', async (req, res) => {
-  try {
-    const count = await Book.countDocuments();
-    console.log(`Fetched book count: ${count}`); // Logging để debug
-    res.json({ count });
-  } catch (error) {
-    console.error('Error fetching book count:', error);
-    res.status(500).json({ error: 'Error fetching book count' });
-  }
+    try {
+        const count = await Book.countDocuments();
+        res.json({ count });
+    } catch (error) {
+        res.status(500).json({ message: 'Lỗi server', error: error.message });
+    }
 });
 
-// Endpoint để thêm sách (yêu cầu xác thực)
-app.post('/books', authenticateToken, upload.single('coverImage'), async (req, res) => {
-  // Kiểm tra quyền admin (nếu cần)
-  if (req.user.role !== 'admin') {
-    return res.status(403).json({ message: 'Không có quyền thực hiện hành động này' });
-  }
-
-  const { id, title, author, publishedDate, category, price, description, status } = req.body;
-  const coverImage = req.file ? `/uploads/${req.file.filename}` : '/uploads/default.jpg';
-
-  try {
-    const newBook = new Book({
-      id,
-      title,
-      author,
-      publishedDate,
-      category,
-      price: parseFloat(price),
-      coverImage,
-      description,
-      status
-    });
-    await newBook.save();
-    console.log(`Added new book with ID: ${id}`);
-    res.status(201).json(newBook);
-  } catch (error) {
-    console.error('Error adding book:', error);
-    res.status(400).json({ message: error.message });
-  }
+// Add Book API
+app.post('/books', authenticateToken, async (req, res) => {
+    try {
+        const newBook = new Book(req.body);
+        await newBook.save();
+        res.status(201).json(newBook);
+    } catch (error) {
+        res.status(400).json({ message: error.message });
+    }
 });
 
-// Lấy danh sách sách (phân trang)
+// Get Books List API (with pagination)
 app.get('/books', async (req, res) => {
-  try {
-    const page = parseInt(req.query.page) || 1;
-    const limit = parseInt(req.query.limit) || 10;
-    const skip = (page - 1) * limit;
+    try {
+        const page = parseInt(req.query.page) || 1;
+        const limit = parseInt(req.query.limit) || 10;
+        const skip = (page - 1) * limit;
 
-    const books = await Book.find().skip(skip).limit(limit);
-    res.status(200).json(books);
-  } catch (error) {
-    console.error('Error fetching books:', error);
-    res.status(500).json({ message: error.message });
-  }
+        const books = await Book.find()
+            .skip(skip)
+            .limit(limit);
+
+        const total = await Book.countDocuments();
+
+        res.json({
+            books,
+            currentPage: page,
+            totalPages: Math.ceil(total / limit),
+            totalBooks: total
+        });
+    } catch (error) {
+        res.status(500).json({ message: error.message });
+    }
 });
 
-// Cập nhật sách (yêu cầu xác thực)
-app.put('/books/:id', authenticateToken, upload.single('coverImage'), async (req, res) => {
-  // Kiểm tra quyền admin (nếu cần)
-  if (req.user.role !== 'admin') {
-    return res.status(403).json({ message: 'Không có quyền thực hiện hành động này' });
-  }
+// Update Book API
+app.put('/books/:id', authenticateToken, async (req, res) => {
+    try {
+        const updatedBook = await Book.findOneAndUpdate(
+            { $or: [{ _id: req.params.id }, { id: req.params.id }] },
+            req.body,
+            { new: true }
+        );
 
-  try {
-    const { id } = req.params;
-    const updateData = { ...req.body };
+        if (!updatedBook) {
+            return res.status(404).json({ message: 'Không tìm thấy sách' });
+        }
 
-    if (req.file) {
-      updateData.coverImage = '/uploads/' + req.file.filename;
+        res.json(updatedBook);
+    } catch (error) {
+        res.status(400).json({ message: error.message });
     }
-
-    const updatedBook = await Book.findByIdAndUpdate(
-      id,
-      updateData,
-      { new: true }
-    );
-
-    if (!updatedBook) {
-      return res.status(404).json({ message: 'Không tìm thấy sách' });
-    }
-
-    res.json(updatedBook);
-  } catch (error) {
-    console.error('Error updating book:', error);
-    res.status(500).json({ message: 'Lỗi server khi cập nhật sách' });
-  }
 });
 
-// Lấy chi tiết sách theo ID
+// Get Book Detail API
 app.get('/books/:id', async (req, res) => {
-  try {
-    // Thử tìm theo MongoDB _id trước
-    let book = await Book.findById(req.params.id);
+    try {
+        let book = await Book.findById(req.params.id);
+        if (!book) {
+            book = await Book.findOne({ id: req.params.id });
+        }
 
-    // Nếu không tìm thấy, thử tìm theo trường id tùy chỉnh
-    if (!book) {
-      book = await Book.findOne({ id: req.params.id });
+        if (!book) {
+            return res.status(404).json({ message: 'Không tìm thấy sách' });
+        }
+
+        res.json(book);
+    } catch (error) {
+        res.status(500).json({ message: error.message });
     }
-
-    if (!book) return res.status(404).json({ message: 'Book not found' });
-    res.status(200).json(book);
-  } catch (error) {
-    console.error('Error fetching book:', error);
-    res.status(500).json({ message: error.message });
-  }
 });
 
-// Xóa sách (yêu cầu xác thực)
+// Delete Book API
 app.delete('/books/:id', authenticateToken, async (req, res) => {
-  // Kiểm tra quyền admin (nếu cần)
-  if (req.user.role !== 'admin') {
-    return res.status(403).json({ message: 'Không có quyền thực hiện hành động này' });
-  }
+    try {
+        const deletedBook = await Book.findOneAndDelete({
+            $or: [{ _id: req.params.id }, { id: req.params.id }]
+        });
 
-  try {
-    const book = await Book.findByIdAndDelete(req.params.id);
-    if (!book) return res.status(404).json({ message: 'Book not found' });
-    res.status(200).json({ message: 'Book deleted successfully' });
-  } catch (error) {
-    console.error('Error deleting book:', error);
-    res.status(500).json({ message: error.message });
-  }
+        if (!deletedBook) {
+            return res.status(404).json({ message: 'Không tìm thấy sách' });
+        }
+
+        res.json({ message: 'Xóa sách thành công' });
+    } catch (error) {
+        res.status(500).json({ message: error.message });
+    }
 });
 
-// Route mặc định
+// Default route
 app.get('/', (req, res) => {
-  res.send('Welcome to the Books API!');
+    res.json({ message: 'Welcome to Book Store API' });
 });
 
-// Thêm middleware xử lý lỗi
+// Error handling middleware
 app.use((err, req, res, next) => {
-  console.error(err.stack);
-  res.status(500).json({
-    message: 'Something broke!',
-    error: process.env.NODE_ENV === 'development' ? err.message : 'Internal server error'
-  });
+    console.error(err.stack);
+    res.status(500).json({ message: 'Đã xảy ra lỗi!', error: err.message });
 });
 
-// Khởi động server
+// Start server
 app.listen(PORT, '0.0.0.0', () => {
-  console.log(`Server is running on port`);
+    console.log(`Server is running on port ${PORT}`);
 });

@@ -2,10 +2,12 @@ import React, { useState, useEffect } from "react";
 import { useParams, useNavigate, Link } from "react-router-dom";
 import { Container, Form, Button, Image } from "react-bootstrap";
 import axios from "axios";
+import { useAuth } from '../components/AuthContext';
 
 function EditBook() {
   const { id } = useParams();
   const navigate = useNavigate();
+  const { token } = useAuth();
   const [book, setBook] = useState({
     id: "",
     title: "",
@@ -65,7 +67,12 @@ function EditBook() {
     try {
       const response = await axios.put(
         `http://localhost:5000/books/${id}`,
-        book
+        book,
+        {
+          headers: {
+            'Authorization': `Bearer ${token}`
+          }
+        }
       );
 
       if (response.status === 200) {

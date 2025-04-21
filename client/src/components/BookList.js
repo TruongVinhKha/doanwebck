@@ -3,33 +3,34 @@ import { useNavigate, Link } from "react-router-dom";
 import { Container, Row, Col, Card, Button, Form, Modal } from "react-bootstrap";
 import InfiniteScroll from "react-infinite-scroll-component";
 import axios from "axios";
+import { useAuth } from '../components/AuthContext';
 
 function BookList({ query, setQuery, category, setCategory }) {
   const navigate = useNavigate();
+  const { token } = useAuth();
   const [items, setItems] = useState([]);
   const [hasMore, setHasMore] = useState(true);
   const [page, setPage] = useState(1);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [deleteBookId, setDeleteBookId] = useState(null);
 
-  // Hàm lấy sách từ API
+  // Fetch books from API
   const fetchBooks = async (pageNum = 1, append = false) => {
     try {
       const response = await axios.get(`http://localhost:5000/books?page=${pageNum}&limit=10`);
-      const newBooks = response.data;
-      setItems(prev => append ? [...prev, ...newBooks] : newBooks);
-      setHasMore(newBooks.length === 10); // Nếu trả về ít hơn 10, không còn dữ liệu
+      const { books, currentPage, totalPages } = response.data;
+
+      setItems(prev => append ? [...prev, ...books] : books);
+      setHasMore(currentPage < totalPages);
     } catch (error) {
       console.error("Error fetching books:", error);
     }
   };
 
-  // Gọi API khi component mount hoặc khi page thay đổi
   useEffect(() => {
     fetchBooks(1);
   }, []);
 
-  // Hàm tải thêm dữ liệu cho InfiniteScroll
   const fetchMoreData = () => {
     if (!hasMore) return;
     const nextPage = page + 1;
@@ -37,7 +38,6 @@ function BookList({ query, setQuery, category, setCategory }) {
     fetchBooks(nextPage, true);
   };
 
-  // Xóa sách
   const handleDelete = (id) => {
     setDeleteBookId(id);
     setShowDeleteModal(true);
@@ -45,8 +45,12 @@ function BookList({ query, setQuery, category, setCategory }) {
 
   const confirmDelete = async () => {
     try {
-      await axios.delete(`http://localhost:5000/books/${deleteBookId}`);
-      setItems(items.filter((book) => book._id !== deleteBookId));
+      await axios.delete(`http://localhost:5000/books/${deleteBookId}`, {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+      setItems(items.filter((book) => book.id !== deleteBookId));
       setShowDeleteModal(false);
       alert("Sách đã được xóa thành công!");
     } catch (error) {
@@ -94,7 +98,7 @@ function BookList({ query, setQuery, category, setCategory }) {
         <Row className="g-4">
           {filteredBooks.length > 0 ? (
             filteredBooks.map((book) => (
-              <Col key={book._id} md={3}>
+              <Col key={book.id} md={3}>
                 <Card className="shadow-lg border-0 rounded-4" style={{ backgroundColor: "#fffaf9" }}>
                   <Card.Img
                     src={book.coverImage || 'https://coffective.com/wp-content/uploads/2018/06/default-featured-image.png.jpg'}

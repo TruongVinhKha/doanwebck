@@ -2,9 +2,11 @@ import React, { useState, useEffect } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { Container, Form, Button, Image } from "react-bootstrap";
 import axios from "axios";
+import { useAuth } from '../components/AuthContext';
 
 function AddBook() {
   const navigate = useNavigate();
+  const { token } = useAuth();
   const [book, setBook] = useState({
     id: "",
     title: "",
@@ -77,7 +79,16 @@ function AddBook() {
     setIsSubmitting(true);
 
     try {
-      const response = await axios.post("http://localhost:5000/books", book);
+      const response = await axios.post(
+        "http://localhost:5000/books",
+        book,
+        {
+          headers: {
+            'Authorization': `Bearer ${token}`
+          }
+        }
+      );
+
       if (response.status === 201) {
         showNotification("Thêm sách thành công!");
         setNextId(nextId + 1); // Tăng nextId sau khi thêm thành công
