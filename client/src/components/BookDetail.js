@@ -2,6 +2,7 @@ import { useParams, Link } from "react-router-dom";
 import { useState, useEffect } from "react";
 import { Container, Row, Col, Card, Button } from "react-bootstrap";
 import axios from "axios";
+import API_URL from '../config';
 
 export function BookDetail() {
   const { id } = useParams();
@@ -10,7 +11,7 @@ export function BookDetail() {
   useEffect(() => {
     const fetchBook = async () => {
       try {
-        const response = await axios.get(`http://localhost:5000/books/${id}`);
+        const response = await axios.get(`${API_URL}/books/${id}`);
         setBook(response.data);
       } catch (error) {
         console.error("Error fetching book:", error);

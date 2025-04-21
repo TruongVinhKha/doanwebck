@@ -4,6 +4,7 @@ import { Container, Row, Col, Card, Button, Form, Modal } from "react-bootstrap"
 import InfiniteScroll from "react-infinite-scroll-component";
 import axios from "axios";
 import { useAuth } from '../components/AuthContext';
+import API_URL from '../config';
 
 function BookList({ query, setQuery, category, setCategory }) {
   const navigate = useNavigate();
@@ -17,7 +18,7 @@ function BookList({ query, setQuery, category, setCategory }) {
   // Fetch books from API
   const fetchBooks = async (pageNum = 1, append = false) => {
     try {
-      const response = await axios.get(`http://localhost:5000/books?page=${pageNum}&limit=10`);
+      const response = await axios.get(`${API_URL}/books?page=${pageNum}&limit=10`);
       const { books, currentPage, totalPages } = response.data;
 
       setItems(prev => append ? [...prev, ...books] : books);
@@ -45,7 +46,7 @@ function BookList({ query, setQuery, category, setCategory }) {
 
   const confirmDelete = async () => {
     try {
-      await axios.delete(`http://localhost:5000/books/${deleteBookId}`, {
+      await axios.delete(`${API_URL}/books/${deleteBookId}`, {
         headers: {
           'Authorization': `Bearer ${token}`
         }

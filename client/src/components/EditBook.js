@@ -3,6 +3,7 @@ import { useParams, useNavigate, Link } from "react-router-dom";
 import { Container, Form, Button, Image } from "react-bootstrap";
 import axios from "axios";
 import { useAuth } from '../components/AuthContext';
+import API_URL from '../config';
 
 function EditBook() {
   const { id } = useParams();
@@ -28,7 +29,7 @@ function EditBook() {
       try {
         setLoading(true);
         // Use the correct endpoint that matches your server.js
-        const response = await axios.get(`http://localhost:5000/books/${id}`);
+        const response = await axios.get(`${API_URL}/books/${id}`);
         const bookData = response.data;
 
         // Format the date if it exists
@@ -66,7 +67,7 @@ function EditBook() {
 
     try {
       const response = await axios.put(
-        `http://localhost:5000/books/${id}`,
+        `${API_URL}/books/${id}`,
         book,
         {
           headers: {
