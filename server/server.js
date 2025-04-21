@@ -26,7 +26,7 @@ const storage = multer.diskStorage({
     cb(null, 'uploads/');
   },
   filename: (req, file, cb) => {
-    cb(null, Date.now() + path.extname(file.originalname)); 
+    cb(null, Date.now() + path.extname(file.originalname));
   }
 });
 const upload = multer({ storage });
@@ -38,9 +38,9 @@ if (!fs.existsSync('uploads')) {
 
 // MongoDB connection
 const mongoURI = 'mongodb+srv://truongvinhkha:kha123@books-data.uqjrvey.mongodb.net/?retryWrites=true&w=majority&appName=Books-data';
-mongoose.connect(mongoURI, { 
-  useNewUrlParser: true, 
-  useUnifiedTopology: true 
+mongoose.connect(mongoURI, {
+  useNewUrlParser: true,
+  useUnifiedTopology: true
 })
   .then(() => console.log('MongoDB connected successfully'))
   .catch(err => {
@@ -76,11 +76,11 @@ const User = mongoose.model('User', userSchema);
 const authenticateToken = (req, res, next) => {
   const authHeader = req.headers['authorization'];
   const token = authHeader && authHeader.split(' ')[1]; // Bearer TOKEN
-  
+
   if (!token) {
     return res.status(401).json({ message: 'Không có token xác thực' });
   }
-  
+
   jwt.verify(token, JWT_SECRET, (err, user) => {
     if (err) {
       return res.status(403).json({ message: 'Token không hợp lệ hoặc đã hết hạn' });
@@ -94,33 +94,33 @@ const authenticateToken = (req, res, next) => {
 app.post('/api/register', async (req, res) => {
   try {
     const { username, email, password } = req.body;
-    
+
     // Kiểm tra người dùng đã tồn tại chưa
     const existingUser = await User.findOne({ $or: [{ username }, { email }] });
     if (existingUser) {
       return res.status(400).json({ message: 'Username hoặc email đã tồn tại' });
     }
-    
+
     // Mã hóa mật khẩu
     const salt = await bcrypt.genSalt(10);
     const hashedPassword = await bcrypt.hash(password, salt);
-    
+
     // Tạo người dùng mới
     const newUser = new User({
       username,
       email,
       password: hashedPassword
     });
-    
+
     await newUser.save();
-    
+
     // Tạo JWT token
     const token = jwt.sign(
       { userId: newUser._id, username: newUser.username, role: newUser.role },
       JWT_SECRET,
       { expiresIn: '24h' } // Token hết hạn sau 24 giờ
     );
-    
+
     res.status(201).json({
       message: 'Đăng ký thành công',
       token,
@@ -141,26 +141,26 @@ app.post('/api/register', async (req, res) => {
 app.post('/api/login', async (req, res) => {
   try {
     const { username, password } = req.body;
-    
+
     // Tìm người dùng
     const user = await User.findOne({ username });
     if (!user) {
       return res.status(400).json({ message: 'Tên đăng nhập hoặc mật khẩu không chính xác' });
     }
-    
+
     // Kiểm tra mật khẩu
     const isPasswordValid = await bcrypt.compare(password, user.password);
     if (!isPasswordValid) {
       return res.status(400).json({ message: 'Tên đăng nhập hoặc mật khẩu không chính xác' });
     }
-    
+
     // Tạo JWT token
     const token = jwt.sign(
       { userId: user._id, username: user.username, role: user.role },
       JWT_SECRET,
       { expiresIn: '24h' }
     );
-    
+
     res.json({
       message: 'Đăng nhập thành công',
       token,
@@ -259,7 +259,7 @@ app.put('/books/:id', authenticateToken, upload.single('coverImage'), async (req
   try {
     const { id } = req.params;
     const updateData = { ...req.body };
-    
+
     if (req.file) {
       updateData.coverImage = '/uploads/' + req.file.filename;
     }
@@ -286,12 +286,12 @@ app.get('/books/:id', async (req, res) => {
   try {
     // Thử tìm theo MongoDB _id trước
     let book = await Book.findById(req.params.id);
-    
+
     // Nếu không tìm thấy, thử tìm theo trường id tùy chỉnh
     if (!book) {
       book = await Book.findOne({ id: req.params.id });
     }
-    
+
     if (!book) return res.status(404).json({ message: 'Book not found' });
     res.status(200).json(book);
   } catch (error) {
