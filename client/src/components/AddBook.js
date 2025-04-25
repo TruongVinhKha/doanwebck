@@ -27,7 +27,7 @@ function AddBook() {
     const fetchBookCount = async () => {
       try {
         const response = await axios.get(`${API_URL}/api/books/count`);
-        setNextId(response.data.count + 1); // Tăng thêm 1 để tạo ID mới
+        setNextId(response.data.count + 1);
       } catch (error) {
         console.error("Error fetching book count:", error);
       }
@@ -92,7 +92,7 @@ function AddBook() {
 
       if (response.status === 201) {
         showNotification("Thêm sách thành công!");
-        setNextId(nextId + 1); // Tăng nextId sau khi thêm thành công
+        setNextId(nextId + 1); 
         setBook({
           id: "",
           title: "",

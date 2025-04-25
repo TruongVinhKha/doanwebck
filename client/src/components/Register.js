@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../components/AuthContext';
-import './Auth.css'; // Tệp CSS để tùy chỉnh giao diện
+import './Auth.css';
 
 const Register = () => {
   const [formData, setFormData] = useState({
@@ -24,18 +24,18 @@ const Register = () => {
 
   const onSubmit = async e => {
     e.preventDefault();
-    
+
     // Kiểm tra mật khẩu xác nhận
     if (password !== confirmPassword) {
       setError('Mật khẩu xác nhận không khớp');
       return;
     }
-    
+
     setLoading(true);
-    
+
     try {
       const result = await register(username, email, password);
-      
+
       if (result.success) {
         navigate('/'); // Chuyển hướng đến trang chính sau khi đăng ký
       } else {
@@ -55,7 +55,7 @@ const Register = () => {
         <h2>Đăng ký tài khoản</h2>
         <form onSubmit={onSubmit}>
           {error && <div className="error-message">{error}</div>}
-          
+
           <div className="form-group">
             <label htmlFor="username">Tên đăng nhập</label>
             <input
@@ -68,7 +68,7 @@ const Register = () => {
               autoComplete="username"
             />
           </div>
-          
+
           <div className="form-group">
             <label htmlFor="email">Email</label>
             <input
@@ -81,7 +81,7 @@ const Register = () => {
               autoComplete="email"
             />
           </div>
-          
+
           <div className="form-group">
             <label htmlFor="password">Mật khẩu</label>
             <input
@@ -95,7 +95,7 @@ const Register = () => {
               minLength="6"
             />
           </div>
-          
+
           <div className="form-group">
             <label htmlFor="confirmPassword">Xác nhận mật khẩu</label>
             <input
@@ -109,12 +109,12 @@ const Register = () => {
               minLength="6"
             />
           </div>
-          
+
           <button type="submit" className="btn-primary" disabled={loading}>
             {loading ? 'Đang xử lý...' : 'Đăng ký'}
           </button>
         </form>
-        
+
         <div className="auth-links">
           <p>
             Đã có tài khoản? <Link to="/login">Đăng nhập</Link>

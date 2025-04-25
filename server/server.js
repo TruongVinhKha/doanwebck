@@ -10,9 +10,7 @@ const JWT_SECRET = process.env.JWT_SECRET || 'bookstore_jwt_secret';
 
 // Middleware CORS
 app.use(cors({
-    origin: process.env.NODE_ENV === 'production'
-        ? ['https://client-gamma-inky.vercel.app']
-        : ['http://localhost:3000'],
+    origin: ['https://client-gamma-inky.vercel.app'],
     methods: ['GET', 'POST', 'PUT', 'DELETE'],
     allowedHeaders: ['Content-Type', 'Authorization'],
     credentials: true
@@ -265,5 +263,5 @@ app.use((err, req, res, next) => {
 
 // Start server
 app.listen(PORT, '0.0.0.0', () => {
-    console.log(`Server is running on port ${PORT}`);
+    console.log(`Server is running on Railway`);
 });

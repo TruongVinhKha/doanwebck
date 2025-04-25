@@ -30,8 +30,6 @@ export function BookDetail() {
     );
   }
 
-  const imageUrl = book.coverImage?.startsWith('http') ? book.coverImage : `http://localhost:5000${book.coverImage}`;
-
   return (
     <Container className="mt-5">
       <Row className="align-items-center shadow-lg p-4 rounded-4 mb-4" style={{ backgroundColor: "#fffaf9" }}>
